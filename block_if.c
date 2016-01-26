@@ -701,6 +701,7 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 	struct stat sbuf;
 	// struct diocgattr_arg arg;
 	size_t size, psectsz, psectoff, split;
+	off_t blocks;
 	int extra, fd, sectsz;
 	int nocache, sync, ro, candelete, geom, ssopt, pssopt, sparse;
 	int *fds, sparse_fd;
