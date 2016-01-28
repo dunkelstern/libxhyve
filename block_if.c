@@ -703,7 +703,7 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 	size_t size, psectsz, psectoff, split;
 	off_t blocks;
 	int extra, fd, sectsz;
-	int nocache, sync, ro, candelete, geom, ssopt, pssopt, sparse;
+	int nocache, sync, ro, candelete, geom, ssopt, pssopt, sparse, reset;
 	int *fds, sparse_fd;
     uint32_t *sparse_lut;
 
@@ -720,6 +720,7 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 	size = 0;
 	split = 0;
     sparse = 0;
+    reset = 0;
 
 	pssopt = 0;
 	/*
@@ -759,6 +760,8 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 		}
         else if (!strcmp(cp, "sparse"))
             sparse = 1;
+        else if (!strcmp(cp, "reset"))
+            reset = 1;
 		else {
 			fprintf(stderr, "Invalid device option \"%s\"\n", cp);
 			goto err;
@@ -796,6 +799,10 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 
 			printf(" - %s\n", filename);
 
+			if (reset) {
+				unlink(filename);
+			}
+
 			fd = open(filename, (ro ? O_RDONLY : O_RDWR | O_CREAT) | extra);
 			if (fd < 0 && !ro) {
 				perror("Could not open backing file r/w, reverting to readonly");
@@ -817,9 +824,9 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 
 			if (sbuf.st_size == 0) {
 				// create image file
-				printf("   -> file does not exist, creating empty file\n");
 				fchmod(fd, 0660);
                 if (!sparse) {
+					printf("   -> file does not exist, creating empty file\n");
                     char buffer[1024];
                     memset(buffer, 0, 1024);
                     for(size_t j = 0; j < split / 1024; j++) {
@@ -834,6 +841,10 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 	} else {
         // open a single file
         printf("Single image disk\n");
+
+		if (reset) {
+			unlink(nopt);
+		}
 
 		fd = open(nopt, (ro ? O_RDONLY : O_RDWR | O_CREAT) | extra);
 		if (fd < 0 && !ro) {
@@ -859,9 +870,9 @@ blockif_open(const char *optstr, UNUSED const char *ident)
 		if (sbuf.st_size == 0) {
 			// TODO: make growing disks possible
 			// create image file
-			printf(" -> file does not exist, creating empty file\n");
 			fchmod(fd, 0660);
             if (!sparse) {
+				printf(" -> file does not exist, creating empty file\n");
                 char buffer[1024];
                 memset(buffer, 0, 1024);
                 for(size_t i = 0; i < size / 1024; i++) {
@@ -934,6 +945,10 @@ blockif_open(const char *optstr, UNUSED const char *ident)
         size_t len = strlen(nopt) + 6;
         char *filename = calloc(len, 1);
         snprintf(filename, len, "%s.lut", nopt);
+
+		if (reset) {
+			unlink(filename);
+		}
 
         // open lut file
         sparse_fd = open(filename, (ro ? O_RDONLY : O_RDWR | O_CREAT) | extra);
